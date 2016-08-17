@@ -1,5 +1,5 @@
 #特性
-1. 通过hessian协议调用dubbo服务，同时使用zookeeper client来订阅服务通知
+1. 通过hessian协议调用dubbo服务，同时使用zookeeper client来订阅服务通知，注冊消費者
 2. 调用java服务时，自动修正方法参数类型和类的属性。
 3. 使用Promise模式
 

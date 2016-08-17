@@ -1,0 +1,72 @@
+{
+  "name": "dubbo-hessian",
+  "description": "1. 通过hessian协议调用dubbo服务，同时使用zookeeper client来订阅服务通知\r 2. 调用java服务时，自动修正方法参数类型和类的属性。\r 3. 使用Promise模式",
+  "version": "1.0.0",
+  "author": {
+    "name": "ccsharp",
+    "email": "263209441@qq.com"
+  },
+  "scripts": {
+    "test": "npm run eslint && npm run test-cov",
+    "test-cov": "istanbul cover ./node_modules/mocha/bin/_mocha -- -t 50000 --recursive  -R spec test/",
+    "compile": "babel --presets es2015-loose,stage-1 --plugins transform-runtime src/ --out-dir lib/ --source-maps",
+    "watch-compile": "npm run compile -- --watch",
+    "watch": "npm run watch-compile",
+    "prepublish": "npm run compile",
+    "eslint": "eslint src/"
+  },
+  "contributors": [
+    {
+      "name": "ccsharp",
+      "email": "263209441@qq.com"
+    }
+  ],
+  "main": "lib/index.js",
+  "dependencies": {
+    "babel-runtime": "6.6.1",
+    "bluebird": "^3.4.1",
+    "hessian-proxy-cn": "^1.0.1",
+    "java-class-parser-generics": "^0.0.2",
+    "node-zookeeper-client": "^0.2.2",
+    "node-zookeeper-dubbo": "^2.0.1"
+  },
+  "devDependencies": {
+    "mocha": "1.20.1",
+    "istanbul": "0.4.0",
+    "babel-cli": "^6.7.7",
+    "babel-preset-es2015": "^6.6.0",
+    "babel-preset-es2015-loose": "^7.0.0",
+    "babel-preset-stage-1": "^6.5.0",
+    "babel-plugin-transform-runtime": "^6.7.5",
+    "babel-core": "^6.7.7",
+    "babel-eslint": "^6.0.4",
+    "eslint": "2.8.0",
+    "typescript": "next",
+    "source-map": "0.5.3"
+  },
+  "keywords": [
+    "dubbo",
+    "framework",
+    "zookeeper",
+    "hessian",
+    "api",
+    "es6",
+    "es7",
+    "async",
+    "await",
+    "yield",
+    "generator-function"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/d925529/dubbo-hessian.git"
+  },
+  "engines": {
+    "node": ">=0.12.0"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/d925529/dubbo-hessian/issues"
+  },
+  "homepage": "https://github.com/d925529/dubbo-hessian#readme"
+}

@@ -11,11 +11,12 @@ import querystring from 'querystring';
 
 import zookeeper from 'node-zookeeper-client';
 import parser from 'java-class-parser-generics';
-import Proxy from 'hessian-proxy-cn';
+import hessian from 'hessian-proxy-garbled';
 
 import tool from './toolkit.js';
 
 require('babel-runtime/core-js/promise').default = require('bluebird');
+global.Promise = require('bluebird');
 
 let str = '', vider = 'providers';
 let readDir = tool.P(fs.readdir);
@@ -26,6 +27,7 @@ export default class extends events.EventEmitter {
      * @param json对象，key的含义如下:
      *  name（app标识）,
      *  zk(注册中心地址 ip:port
+     *  host 本机IP
      *  dubbo_version(展示到注册中心的消费者dubbo版本,默认2.8.4),
      *  service_version(服务版本,默认为任意版本,不为空时在ZK中心只获取指定版本的服务),
      *  service_group = 'dubbo'(服务分组,默认dubbo,这也是dubbo服务端在不指定分组时的默认分组)
@@ -34,19 +36,25 @@ export default class extends events.EventEmitter {
      *  username zk用户名
      *  password zk密码
      */
-    constructor({name = 'node-client', zk, connectTimeout = 1000, retries = 3, dubbo_version = '2.8.4', service_version = false, service_group = 'dubbo', strictString = true, ip = false, username = '', password = ''} = {}) {
+    constructor({name = 'node-client', zk,host = 'node-host', connectTimeout = 1000, retries = 3, dubbo_version = '2.8.4', service_version = false, service_group = 'dubbo', strictString = true, ip = false, username = '', password = ''} = {}) {
+        if (!zk) {
+            throw '必须定义zk地址!';
+        }
+        if (fs.existsSync('./interface') === false) {
+            throw 'interface目录不存在!';
+        }
         super();
         this.client = zookeeper.createClient(zk, {
             connectTimeout: connectTimeout,
             retries: retries
         });
-        this.client.connect();
         this.name = name;
         this.dubbo_version = dubbo_version;
         this.service_version = service_version;
         this.service_group = service_group;
         this.strictString = strictString;
         this.ip = ip;
+        this.clientHost = host;
         this.username = username;
         this.password = password;
         this.init();
@@ -59,12 +67,12 @@ export default class extends events.EventEmitter {
         let self = this;
         let domains = await readDir('./interface/domain');
         this.domains = {};
-        this.services = {};
+        this.dubbo = {};
         domains.forEach((ele, index) => {
             domains[index] = `./interface/domain/${ele}`;
         });
         domains = await parser2(domains);
-        domains.keys.forEach((clzName) => {
+        for(let clzName in domains){
             let fns = {};
             domains[clzName].methods.forEach((method) => {
                 var regs = /^get(\w*)/.exec(method.name);
@@ -146,15 +154,17 @@ export default class extends events.EventEmitter {
                 }
             });
             this.domains[clzName] = fns;
-        });
+        }
         domains = await readDir('./interface/service');
         domains.forEach((ele, index) => {
             domains[index] = `./interface/service/${ele}`;
         });
         domains = await parser2(domains);
-        domains.keys.forEach((clzName) => {
+        for(let clzName in domains){
+            let name = clzName.substr(clzName.lastIndexOf('.') + 1);
+            this.dubbo[name] = {};
             domains[clzName].methods.forEach((method) => {
-                let name = clzName.substr(clzName.lastIndexOf('.') + 1), fns = [];
+                let fns = [];
                 method.args.forEach((el) => {
                     switch (el) {
                         case 'java.lang.String' :
@@ -217,7 +227,7 @@ export default class extends events.EventEmitter {
                                 isArray = true;
                                 type_ !== null && (type_ = type_[1]);
                             }
-                            if (domains.indexOf(type_) > -1) {
+                            if (this.domains[type_] !== undefined) {
                                 if (isArray === true) {
                                     fns.push((value) => {
                                         if (value !== null && value !== undefined) {
@@ -232,7 +242,7 @@ export default class extends events.EventEmitter {
                                 } else {
                                     fns.push((value) => {
                                         if (value !== null && value !== undefined) {
-                                            value = tool.dataCheck(value, type_);
+                                            value = this.dataCheck(value, type_);
                                         }
                                         return value;
                                     });
@@ -245,23 +255,23 @@ export default class extends events.EventEmitter {
                             break;
                     }
                 });
-                this.services[name][method.name] = async function () {
+                this.dubbo[name][method.name] = async function () {
                     var args = Array.from(arguments);
-                    if (args.length !== self.services[name][method.name].check.length) {
+                    if (args.length !== self.dubbo[name][method.name].check.length) {
                         throw {
-                            error: `请求${clzName}.${method.name}时参数不符,class定义了${self.services[name][method.name].check.length}个,传了${args.length}个!`,
-                            message: `请求${clzName}.${method.name}时参数不符,class定义了${self.services[name][method.name].check.length}个,传了${args.length}个!`,
+                            error: `请求${clzName}.${method.name}时参数不符,class定义了${self.dubbo[name][method.name].check.length}个,传了${args.length}个!`,
+                            message: `请求${clzName}.${method.name}时参数不符,class定义了${self.dubbo[name][method.name].check.length}个,传了${args.length}个!`,
                             state: 101005
                         };
                     }
                     args.forEach((value, index) => {
-                        args[index] = self.services[name][method.name].check[index](value);
+                        args[index] = self.dubbo[name][method.name].check[index](value);
                     });
                     return await self.invoke(clzName, method.name, args);
                 };
-                this.services[name][method.name].check = fns;
+                this.dubbo[name][method.name].check = fns;
             });
-        });
+        }
         this.file_finished = true;
         this.finish_call();
     }
@@ -270,27 +280,35 @@ export default class extends events.EventEmitter {
      * 读取节点
      */
     async readNode() {
-        this.host = {};
-        let children = this.getChildren(`/${this.service_group}`, () => {
+        let host_ = {};
+        let children = await this.getChildren(`/${this.service_group}`, () => {
             this.readNode();
         });
-        children.forEach((node) => {
-            this.host[node] = [];
-            let services = this.getChildren(`/${this.service_group}/${node}/${vider}`);
+        for (let i = 0; i < children.length; i++) {
+            let node = children[i];
+            host_[node] = [];
+            let services = await this.getChildren(`/${this.service_group}/${node}/${vider}`);
             this.consumer.query.interface = node;
+            this.consumer.host = `${this.clientHost}/${node}`;
+            this.consumer.query.timestamp = this.consumer.query['×tamp'] = (new Date()).getTime();
+            this.consumer.query.version = this.consumer.query.revision = this.service_version || str;
+            let versions = [];
             services.forEach((service) => {
+                service = decodeURIComponent(service);
                 let ser_param = querystring.parse(service);
                 if (this.service_version !== false && (ser_param['default.version'] || ser_param['version']) !== this.service_version) return;
                 let ser_host = url.parse(service);
                 if (this.ip !== false && ser_host.hostname !== this.ip) return;
-                this.consumer.host = `${host}/${node}`;
-                this.consumer.query.revision = this.consumer.query.version = ser_param['default.version'] || ser_param['version'];
-                this.consumer.query.timestamp = (new Date()).getTime();
-                this.host[node].push(ser_host.host);
-                this.addNode(`/${this.service_group}/${node}/consumers/${encodeURIComponent(url.format(info))}`);
+                host_[node].push(ser_host.host);
+                let version = ser_param['default.version'] || ser_param['version'];
+                if(versions.indexOf(version) === -1){
+                    versions.push(this.consumer.query.version = this.consumer.query.revision = version);
+                    this.addNode(`/${this.service_group}/${node}/consumers/${encodeURIComponent(url.format(this.consumer))}`);
+                }
             });
-        });
+        }
         this.node_finished = true;
+        this.host = host_;
         this.finish_call();
     }
 
@@ -300,12 +318,13 @@ export default class extends events.EventEmitter {
     finish_call() {
         if (this.file_finished === true && this.node_finished === true && this.called === false) {
             this.called = true;
-            this.emit("success");
+            this.emit('success');
         }
     }
 
     init() {
         this.host = {};
+        this.called = false;
         this.client.once('connected', () => {
             this.consumer = {
                 protocol: 'consumer',
@@ -314,6 +333,7 @@ export default class extends events.EventEmitter {
                 query: {
                     application: this.name,
                     category: 'consumers',
+                    'default.timeout' : this.connectTimeout,
                     check: 'false',
                     dubbo: this.dubbo_version,
                     interface: str,
@@ -323,8 +343,9 @@ export default class extends events.EventEmitter {
                     timestamp: str
                 }
             };
-            this.getChildren = tool.P(this.client.getChildren);
-            this.exists = tool.P(this.client.exists);
+            this.getChildren = tool.P(this.client.getChildren, this.client);
+            this.exists = tool.P(this.client.exists, this.client);
+            this.createNode = tool.P(this.client.create, this.client);
             this.readNode();
         }).once('disconnected', () => {
             this.host = {};
@@ -341,7 +362,7 @@ export default class extends events.EventEmitter {
     async addNode(node) {
         let stat = await this.exists(node);
         if (stat) return;
-        self.client.create(node, 1);
+        this.createNode(node, 1);
     }
 
     /**
@@ -350,7 +371,7 @@ export default class extends events.EventEmitter {
      * @returns {number}
      */
     random(arr) {
-        return arr[Math.floor(Math.random() * (length))];
+        return arr[Math.floor(Math.random() * arr.length)];
     }
 
     /**
@@ -392,7 +413,7 @@ export default class extends events.EventEmitter {
                 }
             });
             domain_.run(() => {
-                var proxy = new Proxy(`http://${host}/${clzName}`, this.username, this.password, proxy);
+                var proxy = new hessian.Proxy(`http://${host}/${clzName}`, this.username, this.password, proxy);
                 proxy.invoke(methodName, args, (err, reply) => {
                     if (reply && reply.fault === true) {
                         reject({
@@ -413,10 +434,24 @@ export default class extends events.EventEmitter {
                             state: reply.status
                         });
                     } else {
-                        resolve(reply.hasOwnProperty("data") ? reply.data : reply);
+                        resolve(reply.hasOwnProperty('data') ? reply.data : reply);
                     }
                 });
             });
         });
     }
-}
+
+    dataCheck(domain,fullName) {
+        let fn = this.domains[fullName];
+        var pre = {};
+        for (var i in domain) {
+            if (fn.hasOwnProperty(i)) {
+                pre[i] = fn[i](domain[i]);
+            }
+        }
+        pre.__type__ = fullName;
+        return pre;
+    }
+};
+
+module.exports = exports.default;

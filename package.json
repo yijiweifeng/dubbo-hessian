@@ -27,8 +27,7 @@
     "bluebird": "^3.4.1",
     "hessian-proxy-cn": "^1.0.1",
     "java-class-parser-generics": "^0.0.2",
-    "node-zookeeper-client": "^0.2.2",
-    "node-zookeeper-dubbo": "^2.0.1"
+    "node-zookeeper-client": "^0.2.2"
   },
   "devDependencies": {
     "mocha": "1.20.1",

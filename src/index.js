@@ -2,46 +2,66 @@
  * Created by cc on 16/8/11.
  */
 'use strict';
+import url from 'url';
+import events from 'events';
+import fs from 'fs';
+import domain from 'domain';
+import querystring from 'querystring';
+
 
 import zookeeper from 'node-zookeeper-client';
-import parser from 'java-class-parser';
-import fs from 'fs';
-import tool from './toolkit.js';
-require('babel-runtime/core-js/promise').default = require('bluebird');
-global.Promise = require('bluebird');
-let str = '';
+import parser from 'java-class-parser-generics';
+import Proxy from 'hessian-proxy-cn';
 
-export default class {
+import tool from './toolkit.js';
+
+require('babel-runtime/core-js/promise').default = require('bluebird');
+
+let str = '', vider = 'providers';
+let readDir = tool.P(fs.readdir);
+let parser2 = tool.P(parser);
+
+export default class extends events.EventEmitter {
     /**
-     * @param json,key
+     * @param json对象，key的含义如下:
      *  name（app标识）,
-     *  zk(注册中心地址 ip:port),
-     *  dubbo_version(展示到注册中心的dubbo版本,默认2.8.4),
-     *  service_version(服务版本,默认为任意版本),
-     *  service_group = 'dubbo'(服务分组,默认dubbo)
+     *  zk(注册中心地址 ip:port
+     *  dubbo_version(展示到注册中心的消费者dubbo版本,默认2.8.4),
+     *  service_version(服务版本,默认为任意版本,不为空时在ZK中心只获取指定版本的服务),
+     *  service_group = 'dubbo'(服务分组,默认dubbo,这也是dubbo服务端在不指定分组时的默认分组)
      *  strictString = true(是否过滤所有提交字符串中的script/frame等)
+     *  host(固定调用的服务器地址ip,不传表示调用任意地址,例如 10.0.0.1表示只调用10.0.0.1上的服务)
+     *  username zk用户名
+     *  password zk密码
      */
-    constructor({name, zk, connectTimeout = 1000, retries = 3, dubbo_version = '2.8.4', service_version, service_group = 'dubbo', strictString = true} = {}) {
-        this.client = zookeeper.createClient(zk, connectTimeout, retries);
+    constructor({name = 'node-client', zk, connectTimeout = 1000, retries = 3, dubbo_version = '2.8.4', service_version = false, service_group = 'dubbo', strictString = true, ip = false, username = '', password = ''} = {}) {
+        super();
+        this.client = zookeeper.createClient(zk, {
+            connectTimeout: connectTimeout,
+            retries: retries
+        });
+        this.client.connect();
         this.name = name;
         this.dubbo_version = dubbo_version;
         this.service_version = service_version;
         this.service_group = service_group;
         this.strictString = strictString;
-        this.client.once('connected', () => {
-            this._init();
-        });
+        this.ip = ip;
+        this.username = username;
+        this.password = password;
+        this.init();
     }
 
-    async _init() {
-        let readdir = tool.P(fs.readdir);
-        let parser2 = tool.P(parser);
-        let domains = await readdir('./interface/domain');
+    /**
+     * 读取class
+     */
+    async readFile() {
         let self = this;
+        let domains = await readDir('./interface/domain');
         this.domains = {};
         this.services = {};
         domains.forEach((ele, index) => {
-            domains[index] = "./interface/domain/" + ele;
+            domains[index] = `./interface/domain/${ele}`;
         });
         domains = await parser2(domains);
         domains.keys.forEach((clzName) => {
@@ -51,73 +71,73 @@ export default class {
                 if (regs !== null) {
                     var type = method.ret, fn;
                     switch (type) {
-                        case "java.lang.String" :
+                        case 'java.lang.String' :
                             fn = (value) => {
-                                if (value === null || value === undefined || value === "null") {
+                                if (value === null || value === undefined || value === 'null') {
                                     return null;
                                 }
                                 return tool.stringSafeChange(this.strictString, value + str);
                             };
                             break;
-                        case "int" :
-                        case "float" :
-                        case "double" :
-                        case "long" :
+                        case 'int' :
+                        case 'float' :
+                        case 'double' :
+                        case 'long' :
                             fn = (value) => {
-                                if (value === "" || value === undefined || value === null) {
+                                if (value === '' || value === undefined || value === null) {
                                     return 0;
                                 }
                                 return +value;
                             };
                             break;
-                        case "java.lang.Integer" :
-                        case "java.lang.Double" :
-                        case "java.lang.Float" :
-                        case "java.lang.Long" :
-                        case "java.lang.Number" :
+                        case 'java.lang.Integer' :
+                        case 'java.lang.Double' :
+                        case 'java.lang.Float' :
+                        case 'java.lang.Long' :
+                        case 'java.lang.Number' :
                             fn = (value) => {
-                                if (value === "" || value === undefined || value === null) {
+                                if (value === '' || value === undefined || value === null) {
                                     return null;
                                 }
                                 return +value;
                             };
                             break;
-                        case "java.math.BigDecimal" :
+                        case 'java.math.BigDecimal' :
                             fn = (value) => {
-                                if (value === "" || value === undefined || value === null) {
+                                if (value === '' || value === undefined || value === null) {
                                     return null;
-                                } else if (typeof value === "object") {
-                                    if (value.value === "" || value.value === undefined || value.value === null) return null;
+                                } else if (typeof value === 'object') {
+                                    if (value.value === '' || value.value === undefined || value.value === null) return null;
                                     else return {value: +value.value}
                                 } else {
                                     return {value: +value}
                                 }
                             };
                             break;
-                        case "boolean" :
+                        case 'boolean' :
                             fn = (value) => {
-                                if (value === "" || value === undefined || value === null) {
+                                if (value === '' || value === undefined || value === null) {
                                     return false;
-                                } else if (typeof value === "string") {
-                                    return value === "true";
+                                } else if (typeof value === 'string') {
+                                    return value === 'true';
                                 } else {
                                     return value
                                 }
                             };
                             break;
-                        case "java.lang.Boolean" :
+                        case 'java.lang.Boolean' :
                             fn = (value) => {
-                                if (value === "" || value === undefined) {
+                                if (value === '' || value === undefined) {
                                     return null;
-                                } else if (typeof value === "string") {
-                                    return value === "true";
+                                } else if (typeof value === 'string') {
+                                    return value === 'true';
                                 } else {
                                     return value
                                 }
                             };
                             break;
                         default :
-                            fn = (value)  => {
+                            fn = (value) => {
                                 return value;
                             };
                             break;
@@ -127,62 +147,62 @@ export default class {
             });
             this.domains[clzName] = fns;
         });
-        domains = await readdir('./interface/service');
+        domains = await readDir('./interface/service');
         domains.forEach((ele, index) => {
-            domains[index] = "./interface/service/" + ele;
+            domains[index] = `./interface/service/${ele}`;
         });
         domains = await parser2(domains);
         domains.keys.forEach((clzName) => {
             domains[clzName].methods.forEach((method) => {
-                let name = clzName.substr(clzName.lastIndexOf(".") + 1),fns = [];
+                let name = clzName.substr(clzName.lastIndexOf('.') + 1), fns = [];
                 method.args.forEach((el) => {
                     switch (el) {
-                        case "java.lang.String" :
-                            fns.push( (value) => {
-                                if (value === null || value === undefined || value === "null") {
+                        case 'java.lang.String' :
+                            fns.push((value) => {
+                                if (value === null || value === undefined || value === 'null') {
                                     return null;
                                 }
                                 return tool.stringSafeChange(value + str);
                             });
                             break;
-                        case "int" :
-                        case "float" :
-                        case "double" :
-                        case "long" :
+                        case 'int' :
+                        case 'float' :
+                        case 'double' :
+                        case 'long' :
                             fns.push((value) => {
                                 return +value;
                             });
                             break;
-                        case "java.lang.Integer" :
-                        case "java.lang.Double" :
-                        case "java.lang.Float" :
-                        case "java.lang.Long" :
-                        case "java.lang.Number" :
+                        case 'java.lang.Integer' :
+                        case 'java.lang.Double' :
+                        case 'java.lang.Float' :
+                        case 'java.lang.Long' :
+                        case 'java.lang.Number' :
                             fns.push((value) => {
-                                if (value !== null && value !== undefined && value !== "") {
+                                if (value !== null && value !== undefined && value !== '') {
                                     return +value;
                                 }
                                 return null;
                             });
                             break;
-                        case "java.math.BigDecimal" :
-                            fns.push( (value) => {
-                                if (value === "" || value === undefined || value === null) {
+                        case 'java.math.BigDecimal' :
+                            fns.push((value) => {
+                                if (value === '' || value === undefined || value === null) {
                                     return null;
-                                } else if (typeof value === "object") {
-                                    if (value.value === "" || value.value === undefined || value.value === null) return null;
+                                } else if (typeof value === 'object') {
+                                    if (value.value === '' || value.value === undefined || value.value === null) return null;
                                     else return {value: +value.value}
                                 } else {
                                     return {value: +value}
                                 }
                             });
                             break;
-                        case "java.lang.Boolean" :
+                        case 'java.lang.Boolean' :
                             fns.push((value) => {
-                                if (value === "" || value === undefined) {
+                                if (value === '' || value === undefined) {
                                     return null;
-                                } else if (typeof value === "string") {
-                                    return value === "true";
+                                } else if (typeof value === 'string') {
+                                    return value === 'true';
                                 } else {
                                     return value
                                 }
@@ -190,7 +210,7 @@ export default class {
                             break;
                         default :
                             var type_, isArray = false;
-                            if (el.indexOf("java.util.List") === -1) {
+                            if (el.indexOf('java.util.List') === -1) {
                                 type_ = el;
                             } else {
                                 type_ = el.match(/<(.*)>/);
@@ -199,7 +219,7 @@ export default class {
                             }
                             if (domains.indexOf(type_) > -1) {
                                 if (isArray === true) {
-                                    fns.push( (value) => {
+                                    fns.push((value) => {
                                         if (value !== null && value !== undefined) {
                                             for (var i = 0; i < value.length; i++) {
                                                 if (value[i] !== null && value[i] !== undefined) {
@@ -212,130 +232,191 @@ export default class {
                                 } else {
                                     fns.push((value) => {
                                         if (value !== null && value !== undefined) {
-                                            value = tool.dataCheck(value,type_);
+                                            value = tool.dataCheck(value, type_);
                                         }
                                         return value;
                                     });
                                 }
                             } else {
-                                fns.push( (value) => {
+                                fns.push((value) => {
                                     return value;
                                 });
                             }
                             break;
                     }
                 });
-                this.services[name][method.name] = function () {
+                this.services[name][method.name] = async function () {
                     var args = Array.from(arguments);
-                    return new Promise((resolve, reject) => {
-                        if (args.length !== self.services[name][method.name].check.length) {
-                            return reject({
-                                error: "请求:" + clzName + "." + method.name + "时参数不符!",
-                                message: "请求:" + clzName + "." + method.name + "时参数不符!",
-                                state: 101005
-                            });
-                        }
-                        args.forEach((value, index) => {
-                            args[index] = self.services[name][method.name].check[index](value);
-                        });
-                        self.invoke(name, method.name, args).then((data) => {
-                            resolve(data);
-                        }).catch((err) => {
-                            reject(err);
-                        });
+                    if (args.length !== self.services[name][method.name].check.length) {
+                        throw {
+                            error: `请求${clzName}.${method.name}时参数不符,class定义了${self.services[name][method.name].check.length}个,传了${args.length}个!`,
+                            message: `请求${clzName}.${method.name}时参数不符,class定义了${self.services[name][method.name].check.length}个,传了${args.length}个!`,
+                            state: 101005
+                        };
+                    }
+                    args.forEach((value, index) => {
+                        args[index] = self.services[name][method.name].check[index](value);
                     });
+                    return await self.invoke(clzName, method.name, args);
                 };
                 this.services[name][method.name].check = fns;
             });
         });
+        this.file_finished = true;
+        this.finish_call();
     }
 
-    async invoke() {
-
+    /**
+     * 读取节点
+     */
+    async readNode() {
+        this.host = {};
+        let children = this.getChildren(`/${this.service_group}`, () => {
+            this.readNode();
+        });
+        children.forEach((node) => {
+            this.host[node] = [];
+            let services = this.getChildren(`/${this.service_group}/${node}/${vider}`);
+            this.consumer.query.interface = node;
+            services.forEach((service) => {
+                let ser_param = querystring.parse(service);
+                if (this.service_version !== false && (ser_param['default.version'] || ser_param['version']) !== this.service_version) return;
+                let ser_host = url.parse(service);
+                if (this.ip !== false && ser_host.hostname !== this.ip) return;
+                this.consumer.host = `${host}/${node}`;
+                this.consumer.query.revision = this.consumer.query.version = ser_param['default.version'] || ser_param['version'];
+                this.consumer.query.timestamp = (new Date()).getTime();
+                this.host[node].push(ser_host.host);
+                this.addNode(`/${this.service_group}/${node}/consumers/${encodeURIComponent(url.format(info))}`);
+            });
+        });
+        this.node_finished = true;
+        this.finish_call();
     }
 
+    /**
+     * 成功回调
+     */
+    finish_call() {
+        if (this.file_finished === true && this.node_finished === true && this.called === false) {
+            this.called = true;
+            this.emit("success");
+        }
+    }
 
+    init() {
+        this.host = {};
+        this.client.once('connected', () => {
+            this.consumer = {
+                protocol: 'consumer',
+                slashes: 'true',
+                host: str,
+                query: {
+                    application: this.name,
+                    category: 'consumers',
+                    check: 'false',
+                    dubbo: this.dubbo_version,
+                    interface: str,
+                    revision: str,
+                    version: str,
+                    side: 'consumer',
+                    timestamp: str
+                }
+            };
+            this.getChildren = tool.P(this.client.getChildren);
+            this.exists = tool.P(this.client.exists);
+            this.readNode();
+        }).once('disconnected', () => {
+            this.host = {};
+        });
+        fs.watch('./interface', this.readFile);
+        this.readFile();
+        this.client.connect();
+    }
+
+    /**
+     * 添加节点
+     * @param node
+     */
+    async addNode(node) {
+        let stat = await this.exists(node);
+        if (stat) return;
+        self.client.create(node, 1);
+    }
+
+    /**
+     * 随机算法
+     * @param length
+     * @returns {number}
+     */
+    random(arr) {
+        return arr[Math.floor(Math.random() * (length))];
+    }
+
+    /**
+     * 执行方法
+     * @param clzName
+     * @param methodName
+     * @param args
+     * @returns {Promise}
+     */
+    invoke(clzName, methodName, args) {
+        return new Promise((resolve, reject) => {
+            if (this.host[clzName] === undefined || this.host[clzName].length === 0) {
+                throw {
+                    error: `zk中找不到${clzName}对应的服务节点`,
+                    message: `zk中找不到${clzName}对应的服务节点`,
+                    state: 101003
+                };
+            }
+            let host = this.random(this.host[clzName]);
+            let domain_ = domain.create();
+            domain_.on('error', (err) => {
+                throw {
+                    error: err,
+                    message: err,
+                    state: 101003
+                };
+                if (err.code && err.code.toString() === 'ECONNREFUSED') {
+                    throw {
+                        error: `连接${host}/${clzName}失败!`,
+                        message: `连接${host}/${clzName}失败!`,
+                        state: 101002
+                    };
+                } else {
+                    throw {
+                        error: `${clzName}发生错误 ${err.code}`,
+                        message: `${clzName}发生错误 ${err.code}`,
+                        state: 101005
+                    };
+                }
+            });
+            domain_.run(() => {
+                var proxy = new Proxy(`http://${host}/${clzName}`, this.username, this.password, proxy);
+                proxy.invoke(methodName, args, (err, reply) => {
+                    if (reply && reply.fault === true) {
+                        reject({
+                            message: `${clzName}/${methodName}发生异常!`,
+                            error: `${clzName}/${methodName}发生异常!`,
+                            state: 101004
+                        });
+                    } else if (err) {
+                        reject({
+                            message: `${clzName}/${methodName}发生异常：${JSON.stringify(err)}`,
+                            error: `${clzName}/${methodName}发生异常：${JSON.stringify(err)}`,
+                            state: 101004
+                        });
+                    } else if (reply.status > 0) {
+                        reject({
+                            message: reply.data,
+                            error: reply.data,
+                            state: reply.status
+                        });
+                    } else {
+                        resolve(reply.hasOwnProperty("data") ? reply.data : reply);
+                    }
+                });
+            });
+        });
+    }
 }
-
-
-// client = zookeeper.createClient("101.200.218.24:2181", {
-//     connectTimeout: 1000,
-//     retries: 3
-// });
-//
-//
-// var to = function () {
-//     var service = "com.alibaba.dubbo.monitor.MonitorService";
-//     var parameters = "parameters";
-//     var result = "result";
-//     var address = "10.0.0.17";
-//     var registry = "registry";
-//     var application = "application";
-//     var username = "username";
-//     var statistics = "statistics";
-//     var collected = "collected";
-//     var routes = "routes";
-//     var overrides = "overrides";
-//     var alived = "alived";
-//     var expired = "expired";
-//     return "consumer://" +
-//         address
-//         + "/" +
-//         service
-//         + "?category=consumers&check=false&dubbo=0.0.1-SNAPSHOT-executable&interface=" +
-//         service
-//         + "&pid=18175×tamp=1470913660519";
-// };
-//
-// client.once('connected', function () {
-//     client.create(
-//         "/dubbo/com.alibaba.dubbo.monitor.MonitorService/consumers/10.0.0.179",
-//         new Buffer(to()),
-//         zookeeper.CreateMode.EPHEMERAL,
-//         function (error, path) {
-//             if (error) {
-//                 console.log(error.stack);
-//                 return;
-//             }
-//
-//             console.log('Node: %s is created.', path);
-//         }
-//     );
-//     return;
-//     client.mkdirp("/dubbo/com.alibaba.dubbo.monitor.MonitorService/consumers/10.0.0.177", function (error, path) {
-//         if (error) {
-//             console.log(error.stack);
-//             return;
-//         }
-//         console.log('Node: %s is created.', path);
-//     });
-//     return;
-//     var obj = {"/": {}};
-//     var fn = function (p, o) {
-//         client.getChildren(p, function (error, children, stats) {
-//             children.forEach(function (ele) {
-//                 if (p === "/") {
-//                     o[p + decodeURIComponent(ele)] = {};
-//                     fn(p + ele, o[p + ele]);
-//                 } else {
-//                     o[p + "/" + decodeURIComponent(ele)] = {};
-//                     fn(p + "/" + ele, o[p + "/" + ele]);
-//                 }
-//             });
-//             return obj;
-//         });
-//     };
-//     setTimeout(function () {
-//         var tt = {};
-//         for (var i in obj["/"]["/dubbo"]) {
-//             if (isnotempty(obj["/"]["/dubbo"][i][i + "/providers"])) {
-//                 tt[i] = (obj["/"]["/dubbo"][i]);
-//             }
-//         }
-//         console.log(JSON.stringify(tt));
-//     }, 30 * 1000);
-//     fn("/", obj["/"]);
-// });
-//
-//
-// client.connect();

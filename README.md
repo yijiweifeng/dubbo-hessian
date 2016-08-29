@@ -84,12 +84,14 @@ dubbo.on('事件名',() => {
 });
 ```
 事件列表
+
 |名称        | 含义   |  参数  |
 | --------   | -----:  | :----:  |
 |all|接口全部读取完毕同时都已订阅zookeeper时触发|无|
 |接口名称|该接口读取完毕并订阅zookeeper时触发|读取到的服务器列表|
 |data|接收到服务器数据时触发|json对象，key包含host（服务器地址），className（接口名），methodName（方法名），param（参数），time（耗时），data（数据）|
 |error|发生异常时触发|json对象，key包含host（服务器地址），className（接口名），methodName（方法名），param（参数），time（耗时），error（错误）|
+
 
 ## 错误信息
 错误信息都是一个json对象，key的含义：

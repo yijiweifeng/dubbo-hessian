@@ -1,6 +1,6 @@
 {
-  "name": "dubbo-hessian",
-  "description": "1. 通过hessian协议调用dubbo服务，同时使用zookeeper client来订阅服务通知\r 2. 调用java服务时，自动修正方法参数类型和类的属性。\r 3. 使用Promise模式",
+  "name": "dubbo-client-zookeeper-hessian",
+  "description": "dubbo的hessian协议、zookeeper中心客户端",
   "version": "1.0.0",
   "author": {
     "name": "ccsharp",

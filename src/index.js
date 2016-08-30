@@ -310,9 +310,7 @@ export default class Dubbo extends events.EventEmitter {
                         };
                     }
                     args.forEach((value, index) => {
-                        console.log(this._service[name][method.name].check);
                         args[index] = this._service[name][method.name].check[index](value);
-                        console.log(args[index]);
                     });
                     return await this._invoke(clzName, method.name, args);
                 };

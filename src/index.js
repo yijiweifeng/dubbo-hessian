@@ -550,7 +550,7 @@ export default class Dubbo extends events.EventEmitter {
                 }
             }
         }
-        pre._type_ = fullName;
+        pre.__type__ = fullName;
         return pre;
     }
 }

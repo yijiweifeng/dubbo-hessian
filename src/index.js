@@ -293,8 +293,6 @@ export default class Dubbo extends events.EventEmitter {
                     }
                 });
                 methods[method.name] = async(...args) => {
-                    console.log(name);
-                    console.log(clzName);
                     if (args.length !== this._service[name][method.name].check.length) {
                         this.emit('error', {
                             host: null,

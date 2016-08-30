@@ -115,7 +115,7 @@ export default class Dubbo extends events.EventEmitter {
         this._service = {};
         domains.forEach((ele, index) => domains[index] = `./interface/domain/${ele}`);
         domains = await parser2(domains);
-        for (let clzName in domains) {
+        Object.keys(domains).forEach(clzName => {
             let fns = {};
             let name = clzName.substr(clzName.lastIndexOf('.') + 1);
             domains[clzName].methods.forEach((method) => {
@@ -197,14 +197,13 @@ export default class Dubbo extends events.EventEmitter {
             });
             this._domains[clzName] = fns;
             this._domains[name] = () => this._dataCheck(false, clzName);
-        }
+        });
         domains = await readDir('./interface/service');
         domains.forEach((ele, index) => domains[index] = `./interface/service/${ele}`);
         domains = await parser2(domains);
         let methods = {};
-        for (let clzName in domains) {
+        Object.keys(domains).forEach(clzName => {
             let name = clzName.substr(clzName.lastIndexOf('.') + 1);
-            this._service[name] = {};
             domains[clzName].methods.forEach((method) => {
                 let fns = [];
                 method.args.forEach((el) => {
@@ -271,11 +270,11 @@ export default class Dubbo extends events.EventEmitter {
                                 if (isArray === true) {
                                     fns.push((value) => {
                                         if (value !== null && value !== undefined) {
-                                            for (var i = 0; i < value.length; i++) {
-                                                if (value[i] !== null && value[i] !== undefined) {
-                                                    value[i] = this._dataCheck(value[i], type_);
+                                            value.forEach((valuei,i) => {
+                                                if (valuei !== null && valuei !== undefined) {
+                                                    value[i] = this._dataCheck(valuei, type_);
                                                 }
-                                            }
+                                            })
                                         }
                                         return value;
                                     });
@@ -320,7 +319,7 @@ export default class Dubbo extends events.EventEmitter {
             if (this._host[clzName]) {
                 this.emit(name, this._host[clzName]);
             }
-        }
+        });
         this._file_finished = true;
         this._finish_call();
     }
@@ -328,9 +327,7 @@ export default class Dubbo extends events.EventEmitter {
     async _readNode(node) {
         if (node === undefined) {
             let children = await this._getChildren(`/${this._service_group}`, () => this._readNode());
-            for (let i = 0; i < children.length; i++) {
-                this._readNode(children[i]);
-            }
+            children.forEach(child => this._readNode(child));
             this._node_finished = true;
             this._finish_call();
         } else {
@@ -540,15 +537,9 @@ export default class Dubbo extends events.EventEmitter {
         let fn = this._domains[fullName];
         var pre = {};
         if (domain === false) {
-            for (var i in fn) {
-                pre[i] = fn[i](null);
-            }
+            Object.keys(fn).forEach(i => pre[i] = fn[i](null))
         } else {
-            for (var i in domain) {
-                if (fn.hasOwnProperty(i)) {
-                    pre[i] = fn[i](domain[i]);
-                }
-            }
+            Object.keys(domain).forEach(i => fn.hasOwnProperty(i) && (pre[i] = fn[i](domain[i])))
         }
         pre.__type__ = fullName;
         return pre;

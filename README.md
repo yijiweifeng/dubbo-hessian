@@ -23,6 +23,8 @@
    *      name（app标识）,
    *      zk(注册中心地址 ip:port
    *      host 本机IP
+   *      connectTimeout 连接超时时间,
+   *      retries 错误重试次数
    *      dubbo_version(展示到注册中心的消费者dubbo版本,默认2.8.4),
    *      service_version(服务版本,默认为任意版本,不为空时在ZK中心只获取指定版本的服务),
    *      service_group = '_service'(服务分组,默认dubbo,这也是dubbo服务端在不指定分组时的默认分组)

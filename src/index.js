@@ -416,7 +416,7 @@ export default class Dubbo extends events.EventEmitter {
     }
 
     _invoke(clzName, methodName, args) {
-        return new Promise((resolve) => {
+        return new Promise((resolve,reject) => {
             let begin = +new Date();
             if (this._host[clzName] === undefined || this._host[clzName].length === 0) {
                 this.emit('error', {
@@ -431,7 +431,7 @@ export default class Dubbo extends events.EventEmitter {
                     message: `${clzName}/${methodName}zk中找不到对应的服务节点`,
                     error: `${clzName}/${methodName}zk中找不到对应的服务节点`,
                     state: 101002
-                }
+                };
             }
             let host = this._random(this._host[clzName]);
             let domain_ = domain.create();
@@ -446,11 +446,11 @@ export default class Dubbo extends events.EventEmitter {
                         time: end - begin,
                         error: `${host}/${clzName}/${methodName}连接失败!`
                     });
-                    throw {
+                    reject({
                         message: `${host}/${clzName}/${methodName}连接失败!`,
                         error: `${host}/${clzName}/${methodName}连接失败!`,
                         state: 101005
-                    }
+                    });
                 } else {
                     let end = +new Date();
                     this.emit('error', {
@@ -459,13 +459,13 @@ export default class Dubbo extends events.EventEmitter {
                         methodName: methodName,
                         param: args,
                         time: end - begin,
-                        error: `${host}/${clzName}/${methodName}发生异常${JSON.stringify(err)}!`
+                        error: `${host}/${clzName}/${methodName}发生未知异常:${JSON.stringify(err)}!`
                     });
-                    throw {
-                        message: `${host}/${clzName}/${methodName}发生异常${JSON.stringify(err)}!`,
-                        error: `${host}/${clzName}/${methodName}发生异常${JSON.stringify(err)}!`,
+                    reject({
+                        message: `${host}/${clzName}/${methodName}发生未知异常:${JSON.stringify(err)}!`,
+                        error: `${host}/${clzName}/${methodName}发生未知异常:${JSON.stringify(err)}!`,
                         state: 101004
-                    }
+                    });
                 }
             });
             domain_.run(() => {
@@ -479,13 +479,13 @@ export default class Dubbo extends events.EventEmitter {
                             methodName: methodName,
                             param: args,
                             time: end - begin,
-                            error: `${host}/${clzName}/${methodName}发生未知异常!`
+                            error: `${host}/${clzName}/${methodName}发生故障!`
                         });
-                        throw {
-                            message: `${host}/${clzName}/${methodName}发生未知异常!`,
-                            error: `${host}/${clzName}/${methodName}发生未知异常!`,
+                        reject({
+                            message: `${host}/${clzName}/${methodName}发生故障!`,
+                            error: `${host}/${clzName}/${methodName}发生故障!`,
                             state: 101004
-                        };
+                        });
                     } else if (err) {
                         let end = +new Date();
                         this.emit('error', {
@@ -496,11 +496,11 @@ export default class Dubbo extends events.EventEmitter {
                             time: end - begin,
                             error: `${host}/${clzName}/${methodName}发生异常${JSON.stringify(err)}!`
                         });
-                        throw {
+                        reject({
                             message: `${host}/${clzName}/${methodName}发生异常${JSON.stringify(err)}!`,
                             error: `${host}/${clzName}/${methodName}发生异常${JSON.stringify(err)}!`,
                             state: 101004
-                        };
+                        });
                     } else {
                         let end = +new Date();
                         this.emit('data', {
@@ -512,7 +512,19 @@ export default class Dubbo extends events.EventEmitter {
                             data: reply
                         });
                         if (this._data) {
-                            resolve(this._data(reply));
+                            try{
+                                resolve(this._data(reply));
+                            }catch(error){
+                                this.emit('error', {
+                                    host: host,
+                                    className: clzName,
+                                    methodName: methodName,
+                                    param: args,
+                                    time: end - begin,
+                                    error: `${host}/${clzName}/${methodName}发生异常${JSON.stringify(error)}!`
+                                });
+                                reject(error);
+                            }
                         } else {
                             resolve(reply);
                         }

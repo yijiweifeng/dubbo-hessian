@@ -201,8 +201,8 @@ export default class Dubbo extends events.EventEmitter {
         domains = await readDir('./interface/service');
         domains.forEach((ele, index) => domains[index] = `./interface/service/${ele}`);
         domains = await parser2(domains);
-        let methods = {};
         Object.keys(domains).forEach(clzName => {
+            let methods = {};
             let name = clzName.substr(clzName.lastIndexOf('.') + 1);
             domains[clzName].methods.forEach((method) => {
                 let fns = [];
@@ -293,6 +293,8 @@ export default class Dubbo extends events.EventEmitter {
                     }
                 });
                 methods[method.name] = async(...args) => {
+                    console.log(name);
+                    console.log(clzName);
                     if (args.length !== this._service[name][method.name].check.length) {
                         this.emit('error', {
                             host: null,

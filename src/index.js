@@ -214,7 +214,7 @@ export default class Dubbo extends events.EventEmitter {
                                 if (value === null || value === undefined || value === 'null') {
                                     return null;
                                 }
-                                return tool.stringSafeChange(value + str);
+                                return tool.stringSafeChange(this._strictString,value + str);
                             });
                             break;
                         case 'int':
@@ -309,7 +309,11 @@ export default class Dubbo extends events.EventEmitter {
                             error: `调用${clzName}/${method.name}参数不符,期望${this._service[name][method.name].check.length}个,传了${args.length}个!`
                         };
                     }
-                    args.forEach((value, index) => args[index] = this._service[name][method.name].check[index](value));
+                    args.forEach((value, index) => {
+                        console.log(this._service[name][method.name].check);
+                        args[index] = this._service[name][method.name].check[index](value);
+                        console.log(args[index]);
+                    });
                     return await this._invoke(clzName, method.name, args);
                 };
                 methods[method.name].check = fns;

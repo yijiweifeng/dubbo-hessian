@@ -402,7 +402,7 @@ export default class Dubbo extends events.EventEmitter {
             this._createNode = tool.P(this._client.create, this._client);
             this._readNode();
         }).once('disconnected', () => this._host = {});
-        fs.watch('./interface', this._readFile);
+        fs.watch('./interface', () => this._readFile());
         this._readFile();
         this._client.connect();
     }

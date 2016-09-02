@@ -109,217 +109,224 @@ export default class Dubbo extends events.EventEmitter {
         return Adubbo._domains;
     }
 
-    async _readFile() {
-        let domains = await readDir('./interface/domain');
-        this._domains = {};
-        this._service = {};
-        domains.forEach((ele, index) => domains[index] = `./interface/domain/${ele}`);
-        domains = await parser2(domains);
-        Object.keys(domains).forEach(clzName => {
-            let fns = {};
-            let name = clzName.substr(clzName.lastIndexOf('.') + 1);
-            domains[clzName].methods.forEach((method) => {
-                var regs = /^get(\w*)/.exec(method.name);
-                if (regs !== null) {
-                    var type = method.ret, fn;
-                    switch (type) {
-                        case 'java.lang.String':
-                            fn = (value) => {
-                                if (value === null || value === undefined || value === 'null') {
-                                    return null;
-                                }
-                                return tool.stringSafeChange(this._strictString, value + str);
-                            };
-                            break;
-                        case 'int':
-                        case 'float':
-                        case 'double':
-                        case 'long':
-                            fn = (value) => {
-                                if (value === '' || value === undefined || value === null) {
-                                    return 0;
-                                }
-                                return +value;
-                            };
-                            break;
-                        case 'java.lang.Integer':
-                        case 'java.lang.Double':
-                        case 'java.lang.Float':
-                        case 'java.lang.Long':
-                        case 'java.lang.Number':
-                            fn = (value) => {
-                                if (value === '' || value === undefined || value === null) {
-                                    return null;
-                                }
-                                return +value;
-                            };
-                            break;
-                        case 'java.math.BigDecimal':
-                            fn = (value) => {
-                                if (value === '' || value === undefined || value === null) {
-                                    return null;
-                                } else if (typeof value === 'object') {
-                                    if (value.value === '' || value.value === undefined || value.value === null) return null;
-                                    else return {value: +value.value}
-                                } else {
-                                    return {value: +value}
-                                }
-                            };
-                            break;
-                        case 'boolean':
-                            fn = (value) => {
-                                if (value === '' || value === undefined || value === null) {
-                                    return false;
-                                } else if (typeof value === 'string') {
-                                    return value === 'true';
-                                } else {
-                                    return value
-                                }
-                            };
-                            break;
-                        case 'java.lang.Boolean':
-                            fn = (value) => {
-                                if (value === '' || value === undefined) {
-                                    return null;
-                                } else if (typeof value === 'string') {
-                                    return value === 'true';
-                                } else {
-                                    return value
-                                }
-                            };
-                            break;
-                        default:
-                            fn = value => value;
-                            break;
-                    }
-                    fns[tool.firstLowCase(regs[1])] = fn;
-                }
-            });
-            this._domains[clzName] = fns;
-            this._domains[name] = () => this._dataCheck(false, clzName);
-        });
-        domains = await readDir('./interface/service');
-        domains.forEach((ele, index) => domains[index] = `./interface/service/${ele}`);
-        domains = await parser2(domains);
-        Object.keys(domains).forEach(clzName => {
-            let methods = {};
-            let name = clzName.substr(clzName.lastIndexOf('.') + 1);
-            domains[clzName].methods.forEach((method) => {
-                let fns = [];
-                method.args.forEach((el) => {
-                    switch (el) {
-                        case 'java.lang.String':
-                            fns.push((value) => {
-                                if (value === null || value === undefined || value === 'null') {
-                                    return null;
-                                }
-                                return tool.stringSafeChange(this._strictString,value + str);
-                            });
-                            break;
-                        case 'int':
-                        case 'float':
-                        case 'double':
-                        case 'long':
-                            fns.push(value => +value);
-                            break;
-                        case 'java.lang.Integer':
-                        case 'java.lang.Double':
-                        case 'java.lang.Float':
-                        case 'java.lang.Long':
-                        case 'java.lang.Number':
-                            fns.push((value) => {
-                                if (value !== null && value !== undefined && value !== '') {
+    async _readFile(type = 0) {
+        if(type < 2){
+            let domains = await readDir('./interface/domain');
+            this._domains = {};
+            domains.forEach((ele, index) => domains[index] = `./interface/domain/${ele}`);
+            domains = await parser2(domains);
+            Object.keys(domains).forEach(clzName => {
+                let fns = {};
+                let name = clzName.substr(clzName.lastIndexOf('.') + 1);
+                domains[clzName].methods.forEach((method) => {
+                    var regs = /^get(\w*)/.exec(method.name);
+                    if (regs !== null) {
+                        var type = method.ret, fn;
+                        switch (type) {
+                            case 'java.lang.String':
+                                fn = (value) => {
+                                    if (value === null || value === undefined || value === 'null') {
+                                        return null;
+                                    }
+                                    return tool.stringSafeChange(this._strictString, value + str);
+                                };
+                                break;
+                            case 'int':
+                            case 'float':
+                            case 'double':
+                            case 'long':
+                                fn = (value) => {
+                                    if (value === '' || value === undefined || value === null) {
+                                        return 0;
+                                    }
                                     return +value;
-                                }
-                                return null;
-                            });
-                            break;
-                        case 'java.math.BigDecimal':
-                            fns.push((value) => {
-                                if (value === '' || value === undefined || value === null) {
-                                    return null;
-                                } else if (typeof value === 'object') {
-                                    if (value.value === '' || value.value === undefined || value.value === null) return null;
-                                    else return {value: +value.value}
-                                } else {
-                                    return {value: +value}
-                                }
-                            });
-                            break;
-                        case 'java.lang.Boolean':
-                            fns.push((value) => {
-                                if (value === '' || value === undefined) {
-                                    return null;
-                                } else if (typeof value === 'string') {
-                                    return value === 'true';
-                                } else {
-                                    return value
-                                }
-                            });
-                            break;
-                        default:
-                            var type_, isArray = false;
-                            if (el.indexOf('java.util.List') === -1) {
-                                type_ = el;
-                            } else {
-                                type_ = el.match(/<(.*)>/);
-                                isArray = true;
-                                type_ !== null && (type_ = type_[1]);
-                            }
-                            if (this._domains[type_] !== undefined) {
-                                if (isArray === true) {
-                                    fns.push((value) => {
-                                        if (value !== null && value !== undefined) {
-                                            value.forEach((valuei,i) => {
-                                                if (valuei !== null && valuei !== undefined) {
-                                                    value[i] = this._dataCheck(valuei, type_);
-                                                }
-                                            })
-                                        }
-                                        return value;
-                                    });
-                                } else {
-                                    fns.push((value) => {
-                                        if (value !== null && value !== undefined) {
-                                            value = this._dataCheck(value, type_);
-                                        }
-                                        return value;
-                                    });
-                                }
-                            } else {
-                                fns.push(value => value);
-                            }
-                            break;
+                                };
+                                break;
+                            case 'java.lang.Integer':
+                            case 'java.lang.Double':
+                            case 'java.lang.Float':
+                            case 'java.lang.Long':
+                            case 'java.lang.Number':
+                                fn = (value) => {
+                                    if (value === '' || value === undefined || value === null) {
+                                        return null;
+                                    }
+                                    return +value;
+                                };
+                                break;
+                            case 'java.math.BigDecimal':
+                                fn = (value) => {
+                                    if (value === '' || value === undefined || value === null) {
+                                        return null;
+                                    } else if (typeof value === 'object') {
+                                        if (value.value === '' || value.value === undefined || value.value === null) return null;
+                                        else return {value: +value.value}
+                                    } else {
+                                        return {value: +value}
+                                    }
+                                };
+                                break;
+                            case 'boolean':
+                                fn = (value) => {
+                                    if (value === '' || value === undefined || value === null) {
+                                        return false;
+                                    } else if (typeof value === 'string') {
+                                        return value === 'true';
+                                    } else {
+                                        return value
+                                    }
+                                };
+                                break;
+                            case 'java.lang.Boolean':
+                                fn = (value) => {
+                                    if (value === '' || value === undefined) {
+                                        return null;
+                                    } else if (typeof value === 'string') {
+                                        return value === 'true';
+                                    } else {
+                                        return value
+                                    }
+                                };
+                                break;
+                            default:
+                                fn = value => value;
+                                break;
+                        }
+                        fns[tool.firstLowCase(regs[1])] = fn;
                     }
                 });
-                methods[method.name] = async(...args) => {
-                    if (args.length !== this._service[name][method.name].check.length) {
-                        this.emit('error', {
-                            host: null,
-                            className: clzName,
-                            methodName: method.name,
-                            param: args,
-                            time: 0,
-                            error: `调用${clzName}/${method.name}参数不符,期望${this._service[name][method.name].check.length}个,传了${args.length}个!`
-                        });
-                        throw {
-                            stata: 101006,
-                            message: `调用${clzName}/${method.name}参数不符,期望${this._service[name][method.name].check.length}个,传了${args.length}个!`,
-                            error: `调用${clzName}/${method.name}参数不符,期望${this._service[name][method.name].check.length}个,传了${args.length}个!`
-                        };
-                    }
-                    args.forEach((value, index) => {
-                        args[index] = this._service[name][method.name].check[index](value);
-                    });
-                    return await this._invoke(clzName, method.name, args);
-                };
-                methods[method.name].check = fns;
+                this._domains[clzName] = fns;
+                this._domains[name] = () => this._dataCheck(false, clzName);
             });
-            this._service[name] = methods;
-            if (this._host[clzName]) {
-                this.emit(name, this._host[clzName]);
-            }
-        });
+        }
+
+        if(type !== 1){
+            let services = await readDir('./interface/service');
+            this._service = {};
+            services.forEach((ele, index) => services[index] = `./interface/service/${ele}`);
+            services = await parser2(services);
+            Object.keys(services).forEach(clzName => {
+                let methods = {};
+                let name = clzName.substr(clzName.lastIndexOf('.') + 1);
+                services[clzName].methods.forEach((method) => {
+                    let fns = [];
+                    method.args.forEach((el) => {
+                        switch (el) {
+                            case 'java.lang.String':
+                                fns.push((value) => {
+                                    if (value === null || value === undefined || value === 'null') {
+                                        return null;
+                                    }
+                                    return tool.stringSafeChange(this._strictString,value + str);
+                                });
+                                break;
+                            case 'int':
+                            case 'float':
+                            case 'double':
+                            case 'long':
+                                fns.push(value => +value);
+                                break;
+                            case 'java.lang.Integer':
+                            case 'java.lang.Double':
+                            case 'java.lang.Float':
+                            case 'java.lang.Long':
+                            case 'java.lang.Number':
+                                fns.push((value) => {
+                                    if (value !== null && value !== undefined && value !== '') {
+                                        return +value;
+                                    }
+                                    return null;
+                                });
+                                break;
+                            case 'java.math.BigDecimal':
+                                fns.push((value) => {
+                                    if (value === '' || value === undefined || value === null) {
+                                        return null;
+                                    } else if (typeof value === 'object') {
+                                        if (value.value === '' || value.value === undefined || value.value === null) return null;
+                                        else return {value: +value.value}
+                                    } else {
+                                        return {value: +value}
+                                    }
+                                });
+                                break;
+                            case 'java.lang.Boolean':
+                                fns.push((value) => {
+                                    if (value === '' || value === undefined) {
+                                        return null;
+                                    } else if (typeof value === 'string') {
+                                        return value === 'true';
+                                    } else {
+                                        return value
+                                    }
+                                });
+                                break;
+                            default:
+                                var type_, isArray = false;
+                                if (el.indexOf('java.util.List') === -1) {
+                                    type_ = el;
+                                } else {
+                                    type_ = el.match(/<(.*)>/);
+                                    isArray = true;
+                                    type_ !== null && (type_ = type_[1]);
+                                }
+                                if (this._domains[type_] !== undefined) {
+                                    if (isArray === true) {
+                                        fns.push((value) => {
+                                            if (value !== null && value !== undefined) {
+                                                value.forEach((valuei,i) => {
+                                                    if (valuei !== null && valuei !== undefined) {
+                                                        value[i] = this._dataCheck(valuei, type_);
+                                                    }
+                                                })
+                                            }
+                                            return value;
+                                        });
+                                    } else {
+                                        fns.push((value) => {
+                                            if (value !== null && value !== undefined) {
+                                                value = this._dataCheck(value, type_);
+                                            }
+                                            return value;
+                                        });
+                                    }
+                                } else {
+                                    fns.push(value => value);
+                                }
+                                break;
+                        }
+                    });
+                    methods[method.name] = async(...args) => {
+                        if (args.length !== this._service[name][method.name].check.length) {
+                            this.emit('error', {
+                                host: null,
+                                className: clzName,
+                                methodName: method.name,
+                                param: args,
+                                time: 0,
+                                error: `调用${clzName}/${method.name}参数不符,期望${this._service[name][method.name].check.length}个,传了${args.length}个!`
+                            });
+                            throw {
+                                stata: 101006,
+                                message: `调用${clzName}/${method.name}参数不符,期望${this._service[name][method.name].check.length}个,传了${args.length}个!`,
+                                error: `调用${clzName}/${method.name}参数不符,期望${this._service[name][method.name].check.length}个,传了${args.length}个!`
+                            };
+                        }
+                        args.forEach((value, index) => {
+                            args[index] = this._service[name][method.name].check[index](value);
+                        });
+                        return await this._invoke(clzName, method.name, args);
+                    };
+                    methods[method.name].check = fns;
+                });
+                this._service[name] = methods;
+                if (this._host[clzName]) {
+                    this.emit(name, this._host[clzName]);
+                }
+            });
+        }
+
+
         this._file_finished = true;
         this._finish_call();
     }
@@ -392,6 +399,8 @@ export default class Dubbo extends events.EventEmitter {
     _init() {
         this._host = {};
         this._version = {};
+        this._domains = {};
+        this._service = {};
         this._called = false;
         this._client.once('connected', () => {
             this._getChildren = tool.P(this._client.getChildren, this._client);
@@ -399,7 +408,9 @@ export default class Dubbo extends events.EventEmitter {
             this._createNode = tool.P(this._client.create, this._client);
             this._readNode();
         }).once('disconnected', () => this._host = {});
-        fs.watch('./interface', () => this._readFile());
+
+        fs.watch('./interface/domain', () => this._readFile(1));
+        fs.watch('./interface/service', () => this._readFile(2));
         this._readFile();
         this._client.connect();
     }

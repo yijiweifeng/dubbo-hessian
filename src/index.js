@@ -327,7 +327,7 @@ export default class Dubbo extends events.EventEmitter {
                 if (this._service_version !== false && (ser_param['default.version'] || ser_param['version']) !== this._service_version) return;
                 let ser_host = url.parse(service);
                 if (this._ip !== false && ser_host.hostname !== this._ip) return;
-                hosts.push(ser_host.host);
+                hosts.findIndex(h => h === ser_host.host) === -1 && hosts.push(ser_host.host);
                 let version = ser_param['default.version'] || ser_param['version'];
                 if (this._version[node].indexOf(version) === -1) {
                     this._version[node].push(consumer.query.version = consumer.query.revision = version);
@@ -380,7 +380,8 @@ export default class Dubbo extends events.EventEmitter {
             this._exists = tool.P(this._client.exists, this._client);
             this._createNode = tool.P(this._client.create, this._client);
             this._readNode();
-        }).once('disconnected', () => this._host = {});
+        }).once('disconnected', () => {
+        });
 
         fs.watch('./interface/domain', () => this._readFile(1));
         fs.watch('./interface/service', () => this._readFile(2));

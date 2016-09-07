@@ -64,15 +64,19 @@ export default class Dubbo extends events.EventEmitter {
     }
 
     static get service() {
-        return Adubbo._service;
+        if (Adubbo !== false) return Adubbo._service;
     }
 
     static get domain() {
-        return Adubbo._domains;
+        if (Adubbo !== false) return Adubbo._domains;
     }
 
     static invoke(clzName, methodName, args,host){
-        return Adubbo._invoke(clzName, methodName, args,host);
+        if (Adubbo !== false) return Adubbo._invoke(clzName, methodName, args,host);
+    }
+
+    static random(arr) {
+        if (Adubbo !== false) return Adubbo.random(arr);
     }
 
     async _readFile(type = 0) {

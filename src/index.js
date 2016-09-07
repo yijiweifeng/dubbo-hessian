@@ -72,7 +72,7 @@ export default class Dubbo extends events.EventEmitter {
     }
 
     static invoke(clzName, methodName, args,host){
-        return Adubbo.invoke(clzName, methodName, args,host);
+        return Adubbo._invoke(clzName, methodName, args,host);
     }
 
     async _readFile(type = 0) {

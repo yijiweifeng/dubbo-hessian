@@ -515,7 +515,7 @@ export default class Dubbo extends events.EventEmitter {
         let fn = this._domains[fullName];
         var pre = {};
         if (domain === false) {
-            Object.keys(fn).forEach(i => pre[i] = fn[i](null))
+            Object.keys(fn).forEach(i => pre[i] = fn[i](''))
         } else {
             Object.keys(domain).forEach(i => fn.hasOwnProperty(i) && (pre[i] = fn[i](domain[i])))
         }

@@ -75,8 +75,8 @@ export default class Dubbo extends events.EventEmitter {
         if (Adubbo !== false) return Adubbo._invoke(clzName, methodName, args,host);
     }
 
-    static random(arr) {
-        if (Adubbo !== false) return Adubbo.random(arr);
+    static election(arr) {
+        if (Adubbo !== false) return Adubbo._election(arr);
     }
 
     async _readFile(type = 0) {
@@ -394,7 +394,7 @@ export default class Dubbo extends events.EventEmitter {
         this._createNode(node, 1);
     }
 
-    _random(arr) {
+    _election(arr) {
         return arr[Math.floor(Math.random() * arr.length)];
     }
 
@@ -417,7 +417,7 @@ export default class Dubbo extends events.EventEmitter {
                 };
             }
             if(host === undefined){
-                host = this._random(this._host[clzName]);
+                host = this._election(this._host[clzName]);
             }
             let domain_ = domain.create();
             domain_.on('error', (err) => {

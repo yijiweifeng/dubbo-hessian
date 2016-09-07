@@ -425,7 +425,7 @@ export default class Dubbo extends events.EventEmitter {
         return arr[Math.floor(Math.random() * arr.length)];
     }
 
-    _invoke(clzName, methodName, args) {
+    _invoke(clzName, methodName, args,host) {
         return new Promise((resolve,reject) => {
             let begin = +new Date();
             if (this._host[clzName] === undefined || this._host[clzName].length === 0) {
@@ -443,7 +443,9 @@ export default class Dubbo extends events.EventEmitter {
                     state: 101002
                 };
             }
-            let host = this._random(this._host[clzName]);
+            if(host === undefined){
+                host = this._random(this._host[clzName]);
+            }
             let domain_ = domain.create();
             domain_.on('error', (err) => {
                 if (err.code && err.code.toString() === 'ECONNREFUSED') {

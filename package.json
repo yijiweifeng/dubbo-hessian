@@ -1,7 +1,7 @@
 {
   "name": "dubbo-client-zookeeper-hessian",
   "description": "dubbo的hessian协议、zookeeper中心客户端",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "author": {
     "name": "ccsharp",
     "email": "263209441@qq.com"

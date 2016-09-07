@@ -1,41 +1,3 @@
-/**
- * Created by cc on 16/8/11.
- *
- * 初始化 require(..).one(参数) ：
- *      初始化参数是json对象，key的含义如下:
- *      name（app标识）,
- *      zk(注册中心地址 ip:port
- *      host 本机IP
- *      connectTimeout 连接超时时间,
- *      retries 错误重试次数
- *      dubbo_version(展示到注册中心的消费者dubbo版本,默认2.8.4),
- *      service_version(服务版本,默认为任意版本,不为空时在ZK中心只获取指定版本的服务),
- *      service_group = '_service'(服务分组,默认dubbo,这也是dubbo服务端在不指定分组时的默认分组)
- *      strictString = true(是否过滤所有提交字符串中的script/frame等)
- *      host(固定调用的服务器地址ip,不传表示调用任意地址,例如 10.0.0.1表示只调用10.0.0.1上的服务)
- *      username zk用户名
- *      password zk密码
- *      data 数据处理方法,如果不传则将服务端返回的数据原生不动返回,该方法将接收一个参数，即服务器返回的数据；允许直接throw异常
- *
- *  关于异常格式：
- *      json对象，state=错误编码和message=错误消息
- *  内置的错误码：
- *      101006 参数不符
- *      101002 找不到节点
- *      101005 连接失败
- *      101004 服务端异常
- *  事件说明：
- *  绑定事件前需要先初始化
- *      require(..).on()
- *  on('接口名称') 这个接口初始化完毕，已经可以调用了,事件参数=接口对应的host列表
- *  on('data') 从服务器接收到数据时触发，事件参数=host，className，methodName，param，time，data
- *  on('error') 发生异常时触发，事件参数=host，className，methodName，param，time，error
- *  on('all')  全部初始化完毕
- *  新建实体类：
- *      require(..).domain.实体类名称();
- *  如何调用服务端代码
- *      require(..).service.接口名称.方法名(参数).then().catch(); 参数自动做类型转换
- */
 'use strict';
 import url from 'url';
 import events from 'events';
@@ -326,9 +288,10 @@ export default class Dubbo extends events.EventEmitter {
             });
         }
 
-
-        this._file_finished = true;
-        this._finish_call();
+        if(type === 0){
+            this._file_finished = true;
+            this._finish_call();
+        }
     }
 
     async _readNode(node) {
@@ -337,6 +300,7 @@ export default class Dubbo extends events.EventEmitter {
             children.forEach(child => this._readNode(child));
             this._node_finished = true;
             this._finish_call();
+            this.emit('node');
         } else {
             let hosts = [];
             if (this._version[node] === undefined) {
@@ -366,6 +330,7 @@ export default class Dubbo extends events.EventEmitter {
             if (this._service[name]) {
                 this.emit(name, this._host[node]);
             }
+            this.emit('node-' + name, this._host[node]);
         }
     }
 

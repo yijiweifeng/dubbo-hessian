@@ -71,6 +71,10 @@ export default class Dubbo extends events.EventEmitter {
         return Adubbo._domains;
     }
 
+    static invoke(clzName, methodName, args,host){
+        return Adubbo.invoke(clzName, methodName, args,host);
+    }
+
     async _readFile(type = 0) {
         if(type < 2){
             let domains = await readDir('./interface/domain');

@@ -468,8 +468,8 @@ export default class Dubbo extends events.EventEmitter {
                             error: `${host}/${clzName}/${methodName}发生故障!`
                         });
                         reject({
-                            message: `${host}/${clzName}/${methodName}发生故障!`,
-                            error: `${host}/${clzName}/${methodName}发生故障!`,
+                            message: `${host}/${clzName}/${methodName}发生故障${JSON.stringify(reply)}!`,
+                            error: `${host}/${clzName}/${methodName}发生故障${JSON.stringify(reply)}!`,
                             state: 101004
                         });
                     } else if (err) {

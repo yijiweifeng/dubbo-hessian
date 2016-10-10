@@ -277,7 +277,9 @@ export default class Dubbo extends events.EventEmitter {
                                 error: `调用${clzName}/${method.name}参数不符,期望${this._service[name][method.name].check.length}个,传了${args.length}个!`
                             });
                             throw {
-                                stata: 101006,
+                                state: 101006,
+                                status : 101006,
+                                statusMessage : `调用${clzName}/${method.name}参数不符,期望${this._service[name][method.name].check.length}个,传了${args.length}个!`,
                                 message: `调用${clzName}/${method.name}参数不符,期望${this._service[name][method.name].check.length}个,传了${args.length}个!`,
                                 error: `调用${clzName}/${method.name}参数不符,期望${this._service[name][method.name].check.length}个,传了${args.length}个!`
                             };
@@ -383,8 +385,8 @@ export default class Dubbo extends events.EventEmitter {
         }).once('disconnected', () => {
         });
 
-        fs.watch('./interface/domain', () => this._readFile(1));
-        fs.watch('./interface/service', () => this._readFile(2));
+        //fs.watch('./interface/domain', () => this._readFile(1));
+        //fs.watch('./interface/service', () => this._readFile(2));
         this._readFile();
         this._client.connect();
     }
@@ -412,6 +414,8 @@ export default class Dubbo extends events.EventEmitter {
                     error: `${clzName}/${methodName}zk中找不到对应的服务节点`
                 });
                 throw {
+                    status : 101002,
+                    statusMessage : `${clzName}/${methodName}zk中找不到对应的服务节点`,
                     message: `${clzName}/${methodName}zk中找不到对应的服务节点`,
                     error: `${clzName}/${methodName}zk中找不到对应的服务节点`,
                     state: 101002

@@ -469,7 +469,7 @@ export default class Dubbo extends events.EventEmitter {
                             methodName: methodName,
                             param: args,
                             time: end - begin,
-                            error: `${host}/${clzName}/${methodName}发生故障!`
+                            error: `${host}/${clzName}/${methodName}发生故障${JSON.stringify(reply)}!`
                         });
                         reject({
                             message: `${host}/${clzName}/${methodName}发生故障${JSON.stringify(reply)}!`,

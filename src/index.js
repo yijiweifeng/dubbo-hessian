@@ -12,8 +12,6 @@ import hessian from 'hessian-proxy-garbled';
 
 import tool from './toolkit.js';
 
-require('babel-runtime/core-js/promise').default = require('bluebird');
-global.Promise = require('bluebird');
 
 let str = '',
     vider = 'providers';

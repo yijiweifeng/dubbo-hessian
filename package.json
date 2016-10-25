@@ -1,7 +1,7 @@
 {
   "name": "dubbo-client-zookeeper-hessian",
   "description": "dubbo的hessian协议、zookeeper中心客户端",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "author": {
     "name": "ccsharp",
     "email": "263209441@qq.com"
@@ -24,7 +24,6 @@
   "main": "lib/index.js",
   "dependencies": {
     "babel-runtime": "6.6.1",
-    "bluebird": "^3.4.1",
     "hessian-proxy-garbled": "^0.1.0",
     "java-class-parser-generics": "^0.0.2",
     "node-zookeeper-client": "^0.2.2"
